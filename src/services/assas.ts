@@ -10,6 +10,7 @@ export type CriarCobrancaPayload = {
   atividade: string;
   data: string; // "YYYY-MM-DD"
   participantes: number;
+  billingType: "CREDIT_CARD" | "PIX";
 };
 
 export type CriarCobrancaResponse = {
@@ -31,11 +32,22 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     telefone,
     atividade,
     data,
-    participantes
+    participantes,
+    billingType,
   } = req.body as CriarCobrancaPayload;
 
   // ✅ Validação básica
-  if (!nome || !email || !valor || !cpf || !telefone || !atividade || !data || !participantes) {
+  if (
+    !nome ||
+    !email ||
+    !valor ||
+    !cpf ||
+    !telefone ||
+    !atividade ||
+    !data ||
+    !participantes ||
+    !billingType
+  ) {
     res.status(400).json({
       status: "erro",
       error: "Dados incompletos. Todos os campos são obrigatórios.",
@@ -57,8 +69,32 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       status: "aguardando",
     });
 
-    // 🔹 2. Criar a cobrança no Asaas
-    const dataHoje = new Date().toISOString().split("T")[0]; // garante formato YYYY-MM-DD
+    // 🔹 2. Montar o split dinâmico
+    const WALLET_ID = "52018a77-869b-4df9-aae7-82f5d604c7f4";
+    let split: {
+      walletId: string;
+      fixedValue?: number;
+      percentualValue?: number;
+      }[] = [];
+
+    if (billingType === "PIX") {
+      split = [
+        {
+          walletId: WALLET_ID,
+          fixedValue: 1.0,
+        },
+      ];
+    } else if (billingType === "CREDIT_CARD") {
+      split = [
+        {
+          walletId: WALLET_ID,
+          percentualValue: 1.0,
+        },
+      ];
+    }
+
+    // 🔹 3. Criar a cobrança no Asaas
+    const dataHoje = new Date().toISOString().split("T")[0]; // formato YYYY-MM-DD
 
     const response = await fetch("https://api.asaas.com/v3/payments", {
       method: "POST",
@@ -68,12 +104,13 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         access_token: process.env.ASAAS_API_KEY!,
       },
       body: JSON.stringify({
-        billingType: "CREDIT_CARD", // ou "PIX"
-        customer: "cus_000125717290", // ID do cliente temporário
+        billingType,
+        customer: "cus_000125717290", // ID do cliente (mock/fixo)
         value: valor,
         dueDate: dataHoje,
         description: `Cobrança de ${nome}`,
-        externalReference: reservaId, // vincula reserva ao pagamento
+        externalReference: reservaId,
+        split,
       }),
     });
 
@@ -85,7 +122,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       return;
     }
 
-    // 🔹 3. Retornar a resposta da cobrança
+    // 🔹 4. Retornar a resposta da cobrança
     res.status(200).json({
       status: "ok",
       cobranca: {
@@ -94,7 +131,6 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         invoiceUrl: cobrancaData.invoiceUrl,
       },
     });
-
   } catch (error) {
     console.error("Erro ao criar cobrança:", error);
     res.status(500).json({
