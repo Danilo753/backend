@@ -27,7 +27,7 @@ async function criarCobrancaHandler(req, res) {
         });
         // 🔹 2. Criar a cobrança no Asaas
         const dataHoje = new Date().toISOString().split("T")[0]; // garante formato YYYY-MM-DD
-        const response = await fetch("https://api-sandbox.asaas.com/v3/payments", {
+        const response = await fetch("https://api.asaas.com/v3/payments", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -36,7 +36,7 @@ async function criarCobrancaHandler(req, res) {
             },
             body: JSON.stringify({
                 billingType: "CREDIT_CARD", // ou "PIX"
-                customer: "cus_000006520394", // ID do cliente temporário
+                customer: "cus_000125717290", // ID do cliente temporário
                 value: valor,
                 dueDate: dataHoje,
                 description: `Cobrança de ${nome}`,

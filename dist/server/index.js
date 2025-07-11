@@ -10,11 +10,7 @@ require("dotenv/config");
 const webhook_1 = __importDefault(require("./webhook"));
 const app = (0, express_1.default)();
 // Permitir requisições do localhost:5173 (seu front-end)
-app.use((0, cors_1.default)({
-    origin: "http://localhost:5173", // seu frontend
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
-}));
+app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.post("/criar-cobranca", assas_1.criarCobrancaHandler);
 app.use('/webhook', webhook_1.default);
