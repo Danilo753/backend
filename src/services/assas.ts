@@ -71,27 +71,34 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
 
     // 🔹 2. Montar o split dinâmico
     const WALLET_ID = "52018a77-869b-4df9-aae7-82f5d604c7f4";
-    let split: {
-      walletId: string;
-      fixedValue?: number;
-      percentualValue?: number;
-      }[] = [];
 
-    if (billingType === "PIX") {
-      split = [
-        {
-          walletId: WALLET_ID,
-          fixedValue: 1.0,
-        },
-      ];
-    } else if (billingType === "CREDIT_CARD") {
-      split = [
-        {
-          walletId: WALLET_ID,
-          percentualValue: 1.0,
-        },
-      ];
-    }
+        let split: {
+          walletId: string;
+          fixedValue?: number;
+          percentualValue?: number;
+        }[] = [];
+
+        if (billingType === "PIX") {
+          const valorParaSecundaria = valor - 1.0;
+
+          split = [
+            {
+              walletId: WALLET_ID,
+              fixedValue: parseFloat(valorParaSecundaria.toFixed(2)),
+            },
+          ];
+        } else if (billingType === "CREDIT_CARD") {
+          const percentualParaPrincipal = 1.0; // 1%
+          const valorParaPrincipal = valor * (percentualParaPrincipal / 100);
+          const valorParaSecundaria = valor - valorParaPrincipal;
+
+          split = [
+            {
+              walletId: WALLET_ID,
+              fixedValue: parseFloat(valorParaSecundaria.toFixed(2)),
+            },
+          ];
+        }
 
     // 🔹 3. Criar a cobrança no Asaas
     const dataHoje = new Date().toISOString().split("T")[0]; // formato YYYY-MM-DD
