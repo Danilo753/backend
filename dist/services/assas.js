@@ -3,9 +3,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.criarCobrancaHandler = criarCobrancaHandler;
 const reservas_1 = require("./reservas");
 async function criarCobrancaHandler(req, res) {
-    const { nome, email, valor, cpf, telefone, atividade, data, participantes } = req.body;
+    const { nome, email, valor, cpf, telefone, atividade, data, participantes, billingType, } = req.body;
     // ✅ Validação básica
-    if (!nome || !email || !valor || !cpf || !telefone || !atividade || !data || !participantes) {
+    if (!nome ||
+        !email ||
+        !valor ||
+        !cpf ||
+        !telefone ||
+        !atividade ||
+        !data ||
+        !participantes ||
+        !billingType) {
         res.status(400).json({
             status: "erro",
             error: "Dados incompletos. Todos os campos são obrigatórios.",
@@ -25,8 +33,31 @@ async function criarCobrancaHandler(req, res) {
             participantes,
             status: "aguardando",
         });
-        // 🔹 2. Criar a cobrança no Asaas
-        const dataHoje = new Date().toISOString().split("T")[0]; // garante formato YYYY-MM-DD
+        // 🔹 2. Montar o split dinâmico
+        const WALLET_ID = "52018a77-869b-4df9-aae7-82f5d604c7f4";
+        let split = [];
+        if (billingType === "PIX") {
+            const valorParaSecundaria = valor - 1.0;
+            split = [
+                {
+                    walletId: WALLET_ID,
+                    fixedValue: parseFloat(valorParaSecundaria.toFixed(2)),
+                },
+            ];
+        }
+        else if (billingType === "CREDIT_CARD") {
+            const percentualParaPrincipal = 1.0; // 1%
+            const valorParaPrincipal = valor * (percentualParaPrincipal / 100);
+            const valorParaSecundaria = valor - valorParaPrincipal;
+            split = [
+                {
+                    walletId: WALLET_ID,
+                    fixedValue: parseFloat(valorParaSecundaria.toFixed(2)),
+                },
+            ];
+        }
+        // 🔹 3. Criar a cobrança no Asaas
+        const dataHoje = new Date().toISOString().split("T")[0]; // formato YYYY-MM-DD
         const response = await fetch("https://api.asaas.com/v3/payments", {
             method: "POST",
             headers: {
@@ -35,12 +66,13 @@ async function criarCobrancaHandler(req, res) {
                 access_token: process.env.ASAAS_API_KEY,
             },
             body: JSON.stringify({
-                billingType: "CREDIT_CARD", // ou "PIX"
-                customer: "cus_000125717290", // ID do cliente temporário
+                billingType,
+                customer: "cus_000125717290", // ID do cliente (mock/fixo)
                 value: valor,
                 dueDate: dataHoje,
                 description: `Cobrança de ${nome}`,
-                externalReference: reservaId, // vincula reserva ao pagamento
+                externalReference: reservaId,
+                split,
             }),
         });
         const cobrancaData = await response.json();
@@ -49,7 +81,7 @@ async function criarCobrancaHandler(req, res) {
             res.status(400).json({ status: "erro", erro: cobrancaData });
             return;
         }
-        // 🔹 3. Retornar a resposta da cobrança
+        // 🔹 4. Retornar a resposta da cobrança
         res.status(200).json({
             status: "ok",
             cobranca: {
