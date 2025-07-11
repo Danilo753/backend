@@ -7,11 +7,7 @@ import webhookRouter from "./webhook";
 const app = express();
 
 // Permitir requisições do localhost:5173 (seu front-end)
-app.use(cors({
-  origin: "http://localhost:5173", // seu frontend
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"],
-}));
+app.use(cors());
 
 app.use(express.json());
 
