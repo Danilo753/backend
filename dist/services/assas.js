@@ -4,15 +4,21 @@ exports.criarCobrancaHandler = criarCobrancaHandler;
 const reservas_1 = require("./reservas");
 async function criarCobrancaHandler(req, res) {
     const { nome, email, valor, cpf, telefone, atividade, data, horario, participantes, billingType, } = req.body;
-    // Validação básica dos campos obrigatórios
-    if (!nome || !email || !valor || !cpf || !telefone || !atividade || !data || !participantes || !billingType) {
+    if (!nome ||
+        !email ||
+        !valor ||
+        !cpf ||
+        !telefone ||
+        !atividade ||
+        !data ||
+        !participantes ||
+        !billingType) {
         res.status(400).json({
             status: "erro",
             error: "Dados incompletos. Todos os campos são obrigatórios.",
         });
         return;
     }
-    // Validação do billingType
     if (!["PIX", "CREDIT_CARD"].includes(billingType)) {
         res.status(400).json({
             status: "erro",
@@ -21,7 +27,6 @@ async function criarCobrancaHandler(req, res) {
         return;
     }
     try {
-        // Criar reserva no Firebase
         const reservaId = await (0, reservas_1.criarReserva)({
             nome,
             cpf,
@@ -34,10 +39,8 @@ async function criarCobrancaHandler(req, res) {
             horario: horario || null,
             status: "aguardando",
         });
-        // Data atual para dueDate no formato YYYY-MM-DD
         const dataHoje = new Date().toISOString().split("T")[0];
-        // Chamada para criar pagamento no Asaas
-        const response = await fetch("https://api.asaas.com/v3/payments", {
+        const paymentResponse = await fetch("https://api.asaas.com/v3/payments", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -45,21 +48,20 @@ async function criarCobrancaHandler(req, res) {
                 access_token: process.env.ASAAS_API_KEY,
             },
             body: JSON.stringify({
-                billingType, // usa valor recebido do frontend
-                customer: "cus_000125881683", // cliente fixo; ideal criar cliente dinamicamente
+                billingType,
+                customer: "cus_000125881683", // cliente fixo por enquanto
                 value: valor,
                 dueDate: dataHoje,
                 description: `Cobrança de ${nome}`,
                 externalReference: reservaId,
             }),
         });
-        const cobrancaData = await response.json();
-        if (!response.ok) {
+        const cobrancaData = await paymentResponse.json();
+        if (!paymentResponse.ok) {
             console.error("Erro ao criar cobrança:", cobrancaData);
             res.status(400).json({ status: "erro", erro: cobrancaData });
             return;
         }
-        // Retorna resposta positiva
         res.status(200).json({
             status: "ok",
             cobranca: {
