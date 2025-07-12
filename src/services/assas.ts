@@ -117,7 +117,6 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         dueDate: dataHoje,
         description: `Cobrança de ${nome}`,
         externalReference: reservaId,
-        split,
       }),
     });
 
