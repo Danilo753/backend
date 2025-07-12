@@ -88,7 +88,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         access_token: process.env.ASAAS_API_KEY!,
       },
       body: JSON.stringify({
-        billingType: "UNDEFINED",
+        billingType: "CREDIT_CARD",
         customer: "cus_000125881683", // cliente fixo por enquanto
         value: valor,
         dueDate: dataHoje,
