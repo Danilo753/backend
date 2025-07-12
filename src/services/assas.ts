@@ -36,7 +36,8 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     horario,
     participantes,
     billingType,
-  } = req.body as CriarCobrancaPayload;
+  } = req.body as CriarCobrancaPayload
+  console.log("Dados recebidos:", req.body);
 
   if (
     !nome ||
@@ -88,7 +89,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         access_token: process.env.ASAAS_API_KEY!,
       },
       body: JSON.stringify({
-        billingType: "CREDIT_CARD",
+        billingType,
         customer: "cus_000125881683", // cliente fixo por enquanto
         value: valor,
         dueDate: dataHoje,
@@ -121,3 +122,4 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     });
   }
 }
+
