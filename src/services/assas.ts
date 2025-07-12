@@ -67,7 +67,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       valor,
       data,
       participantes,
-      horario,
+      horario: horario || null,
       status: "aguardando",
     });
 

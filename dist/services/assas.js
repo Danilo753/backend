@@ -31,7 +31,7 @@ async function criarCobrancaHandler(req, res) {
             valor,
             data,
             participantes,
-            horario,
+            horario: horario || null,
             status: "aguardando",
         });
         // Data atual para dueDate no formato YYYY-MM-DD

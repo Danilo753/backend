@@ -11,7 +11,7 @@ export type CriarReservaPayload = {
   atividade: string;
   data: string;
   participantes: number;
-  horario: string; // Novo campo para horário
+  horario: string | null; // Novo campo para horário
   status?: string;
   observacao?: string;
 };
