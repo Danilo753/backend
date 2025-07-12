@@ -5,7 +5,8 @@ const firebase_1 = require("./firebase");
 const firestore_1 = require("firebase/firestore");
 const uuid_1 = require("uuid");
 async function criarReserva(payload) {
-    const { nome, cpf, email, valor, telefone, atividade, data, participantes, status = "aguardando", observacao = "" } = payload;
+    const { nome, cpf, email, valor, telefone, atividade, data, participantes, horario, // Captura o horário do payload
+    status = "aguardando", observacao = "" } = payload;
     // 🔹 Gera um ID único (reservaId)
     const reservaId = (0, uuid_1.v4)();
     const reservaRef = (0, firestore_1.doc)(firebase_1.db, "reservas", reservaId);
@@ -19,6 +20,7 @@ async function criarReserva(payload) {
         atividade,
         data,
         participantes,
+        horario, // Adiciona o horário ao documento
         status,
         observacao,
         criadoEm: firestore_1.Timestamp.now(),

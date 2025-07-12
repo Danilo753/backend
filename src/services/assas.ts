@@ -87,7 +87,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       },
       body: JSON.stringify({
         billingType,
-        customer: "cus_000125717290", // ID do cliente (mock/fixo)
+        customer: "cus_000125881683", // ID do cliente (mock/fixo)
         value: valor,
         dueDate: dataHoje,
         description: `Cobrança de ${nome}`,
