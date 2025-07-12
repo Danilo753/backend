@@ -11,6 +11,7 @@ export type CriarReservaPayload = {
   atividade: string;
   data: string;
   participantes: number;
+  horario: string; // Novo campo para horário
   status?: string;
   observacao?: string;
 };
@@ -25,6 +26,7 @@ export async function criarReserva(payload: CriarReservaPayload): Promise<string
     atividade,
     data,
     participantes,
+    horario, // Captura o horário do payload
     status = "aguardando",
     observacao = ""
   } = payload;
@@ -34,7 +36,7 @@ export async function criarReserva(payload: CriarReservaPayload): Promise<string
   const reservaRef = doc(db, "reservas", reservaId);
 
   // 🔹 Cria o documento com ID fixo
-   await setDoc(reservaRef, {
+  await setDoc(reservaRef, {
     nome,
     cpf,
     email,
@@ -43,10 +45,12 @@ export async function criarReserva(payload: CriarReservaPayload): Promise<string
     atividade,
     data,
     participantes,
+    horario, // Adiciona o horário ao documento
     status,
     observacao,
     criadoEm: Timestamp.now(),
   });
+
   // 🔹 Retorna o ID gerado (será usado no externalReference do Asaas)
   return reservaId;
 }
