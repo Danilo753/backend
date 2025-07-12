@@ -11,6 +11,7 @@ export type CriarCobrancaPayload = {
   data: string; // "YYYY-MM-DD"
   horario: string;
   participantes: number;
+  billingType: "PIX" | "CREDIT_CARD"; // precisa receber isso do frontend
 };
 
 export type CriarCobrancaResponse = {
@@ -33,11 +34,12 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     atividade,
     data,
     horario,
-    participantes
+    participantes,
+    billingType,
   } = req.body as CriarCobrancaPayload;
 
-  // ✅ Validação básica
-  if (!nome || !email || !valor || !cpf || !telefone || !atividade || !data || !participantes) {
+  // Validação básica dos campos obrigatórios
+  if (!nome || !email || !valor || !cpf || !telefone || !atividade || !data || !participantes || !billingType) {
     res.status(400).json({
       status: "erro",
       error: "Dados incompletos. Todos os campos são obrigatórios.",
@@ -45,8 +47,17 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     return;
   }
 
+  // Validação do billingType
+  if (!["PIX", "CREDIT_CARD"].includes(billingType)) {
+    res.status(400).json({
+      status: "erro",
+      error: "Forma de pagamento inválida. Use 'PIX' ou 'CREDIT_CARD'.",
+    });
+    return;
+  }
+
   try {
-    // 🔹 1. Criar a reserva no Firebase
+    // Criar reserva no Firebase
     const reservaId = await criarReserva({
       nome,
       cpf,
@@ -60,9 +71,10 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       status: "aguardando",
     });
 
-    // 🔹 2. Criar a cobrança no Asaas
-    const dataHoje = new Date().toISOString().split("T")[0]; // garante formato YYYY-MM-DD
+    // Data atual para dueDate no formato YYYY-MM-DD
+    const dataHoje = new Date().toISOString().split("T")[0];
 
+    // Chamada para criar pagamento no Asaas
     const response = await fetch("https://api.asaas.com/v3/payments", {
       method: "POST",
       headers: {
@@ -71,12 +83,12 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         access_token: process.env.ASAAS_API_KEY!,
       },
       body: JSON.stringify({
-        billingType: "CREDIT_CARD", // ou "PIX"
-        customer: "cus_000125881683", // ID do cliente temporário
+        billingType, // usa valor recebido do frontend
+        customer: "cus_000125881683", // cliente fixo; ideal criar cliente dinamicamente
         value: valor,
         dueDate: dataHoje,
         description: `Cobrança de ${nome}`,
-        externalReference: reservaId, // vincula reserva ao pagamento
+        externalReference: reservaId,
       }),
     });
 
@@ -88,7 +100,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       return;
     }
 
-    // 🔹 3. Retornar a resposta da cobrança
+    // Retorna resposta positiva
     res.status(200).json({
       status: "ok",
       cobranca: {
@@ -97,7 +109,6 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
         invoiceUrl: cobrancaData.invoiceUrl,
       },
     });
-
   } catch (error) {
     console.error("Erro ao criar cobrança:", error);
     res.status(500).json({
