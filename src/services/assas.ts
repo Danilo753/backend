@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 import { criarReserva } from "./reservas";
+import { getDocs, collection, query, where } from "firebase/firestore";
+import { db } from "./firebase";
 
 export type CriarCobrancaPayload = {
   nome: string;
@@ -36,8 +38,12 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     horario,
     participantes,
     billingType,
-  } = req.body as CriarCobrancaPayload
-  console.log("Dados recebidos:", req.body);
+  } = req.body as CriarCobrancaPayload;
+
+  console.log("📥 Dados recebidos:", req.body);
+
+  // Normalizar horário (caso venha com espaços extras)
+  const horarioFormatado = horario?.toString().trim();
 
   if (
     !nome ||
@@ -47,6 +53,7 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     !telefone ||
     !atividade ||
     !data ||
+    !horarioFormatado ||
     !participantes ||
     !billingType
   ) {
@@ -66,6 +73,36 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
   }
 
   try {
+    // 🔍 Consulta Firestore para verificar limite de participantes
+    const reservasQuery = query(
+      collection(db, "reservas"),
+      where("Data", "==", data),
+      where("Horario", "==", horarioFormatado)
+    );
+
+    console.log("🧪 Verificando reservas existentes para:", data, horarioFormatado);
+
+    const snapshot = await getDocs(reservasQuery);
+
+    console.log("📄 Total de reservas encontradas:", snapshot.size);
+
+    let totalReservados = 0;
+    snapshot.forEach((doc) => {
+      const dados = doc.data();
+      console.log("➡️ Reserva encontrada:", dados);
+      totalReservados += dados.Participantes || 0;
+    });
+
+    if (totalReservados + participantes > 30) {
+      console.warn("🚫 Limite de 30 participantes excedido.");
+      res.status(400).json({
+        status: "erro",
+        error: "Limite de 30 pessoas por horário atingido. Escolha outro horário.",
+      });
+      return;
+    }
+
+    // ✅ Criar reserva no Firebase
     const reservaId = await criarReserva({
       nome,
       cpf,
@@ -75,10 +112,11 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       valor,
       data,
       participantes,
-      horario: horario || null,
+      horario: horarioFormatado,
       status: "aguardando",
     });
 
+    // 💸 Criar cobrança com Asaas
     const dataHoje = new Date().toISOString().split("T")[0];
 
     const paymentResponse = await fetch("https://api.asaas.com/v3/payments", {
@@ -101,11 +139,12 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     const cobrancaData = await paymentResponse.json();
 
     if (!paymentResponse.ok) {
-      console.error("Erro ao criar cobrança:", cobrancaData);
+      console.error("❌ Erro ao criar cobrança:", cobrancaData);
       res.status(400).json({ status: "erro", erro: cobrancaData });
       return;
     }
 
+    // ✅ Resposta de sucesso
     res.status(200).json({
       status: "ok",
       cobranca: {
@@ -115,11 +154,10 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       },
     });
   } catch (error) {
-    console.error("Erro ao criar cobrança:", error);
+    console.error("🔥 Erro inesperado ao criar cobrança:", error);
     res.status(500).json({
       status: "erro",
       error: "Erro interno ao processar a cobrança.",
     });
   }
 }
-
