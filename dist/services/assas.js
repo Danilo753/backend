@@ -7,7 +7,6 @@ const firebase_1 = require("./firebase");
 async function criarCobrancaHandler(req, res) {
     const { nome, email, valor, cpf, telefone, atividade, data, horario, participantes, billingType, } = req.body;
     console.log("📥 Dados recebidos:", req.body);
-    // Normalizar horário (caso venha com espaços extras)
     const horarioFormatado = horario?.toString().trim();
     if (!nome ||
         !email ||
@@ -33,19 +32,15 @@ async function criarCobrancaHandler(req, res) {
         return;
     }
     try {
-        // 🔍 Consulta Firestore para verificar limite de participantes
+        // 🔍 Verificar disponibilidade no Firebase
         const reservasQuery = (0, firestore_1.query)((0, firestore_1.collection)(firebase_1.db, "reservas"), (0, firestore_1.where)("Data", "==", data), (0, firestore_1.where)("Horario", "==", horarioFormatado));
-        console.log("🧪 Verificando reservas existentes para:", data, horarioFormatado);
         const snapshot = await (0, firestore_1.getDocs)(reservasQuery);
-        console.log("📄 Total de reservas encontradas:", snapshot.size);
         let totalReservados = 0;
         snapshot.forEach((doc) => {
             const dados = doc.data();
-            console.log("➡️ Reserva encontrada:", dados);
             totalReservados += dados.Participantes || 0;
         });
         if (totalReservados + participantes > 30) {
-            console.warn("🚫 Limite de 30 participantes excedido.");
             res.status(400).json({
                 status: "erro",
                 error: "Limite de 30 pessoas por horário atingido. Escolha outro horário.",
@@ -65,8 +60,46 @@ async function criarCobrancaHandler(req, res) {
             horario: horarioFormatado,
             status: "aguardando",
         });
-        // 💸 Criar cobrança com Asaas
         const dataHoje = new Date().toISOString().split("T")[0];
+        // 🔍 Verificar se o cliente já existe no Asaas (pelo CPF)
+        const customerSearch = await fetch(`https://api.asaas.com/v3/customers?cpfCnpj=${cpf}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                access_token: process.env.ASAAS_API_KEY,
+            },
+        });
+        const customerSearchData = await customerSearch.json();
+        let customerId = null;
+        if (customerSearchData?.data?.length > 0) {
+            customerId = customerSearchData.data[0].id;
+            console.log("🔁 Cliente encontrado:", customerId);
+        }
+        else {
+            // 👤 Criar novo cliente
+            const customerCreate = await fetch("https://api.asaas.com/v3/customers", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    access_token: process.env.ASAAS_API_KEY,
+                },
+                body: JSON.stringify({
+                    name: nome,
+                    email,
+                    cpfCnpj: cpf,
+                    phone: telefone,
+                }),
+            });
+            const customerData = await customerCreate.json();
+            if (!customerCreate.ok) {
+                console.error("❌ Erro ao criar cliente no Asaas:", customerData);
+                res.status(400).json({ status: "erro", erro: customerData });
+                return;
+            }
+            customerId = customerData.id;
+            console.log("🆕 Cliente criado:", customerId);
+        }
+        // 💰 Criar pagamento com o customer correto
         const paymentResponse = await fetch("https://api.asaas.com/v3/payments", {
             method: "POST",
             headers: {
@@ -76,7 +109,7 @@ async function criarCobrancaHandler(req, res) {
             },
             body: JSON.stringify({
                 billingType,
-                customer: "cus_000125881683", // cliente fixo por enquanto
+                customer: customerId,
                 value: valor,
                 dueDate: dataHoje,
                 description: `Cobrança de ${nome}`,
