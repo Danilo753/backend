@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { enviarEmailConfirmacao } from '../services/emailService';
 
 const router = Router();
 
@@ -24,21 +25,35 @@ router.post('/', async (req, res) => {
           dataPagamento: new Date()
         });
 
-        console.log(`✅ Pagamento confirmado e reserva atualizada: ${externalId}`);
-        res.sendStatus(200);
-      } catch (error) {
-        console.error('❌ Erro ao atualizar reserva:', error);
-        res.status(500).send('Erro ao processar o webhook');
+        const reservaSnap = await getDoc(reservaRef);
+      if (!reservaSnap.exists()) {
+        console.warn(`⚠️ Reserva ${externalId} não encontrada para envio de e-mail`);
+        return res.sendStatus(404);
       }
-    } else {
-      console.warn("⚠️ externalReference ausente no webhook.");
-      res.status(400).send('externalReference ausente');
+
+      const reserva = reservaSnap.data();
+
+      await enviarEmailConfirmacao({
+        nome: reserva.nome,
+        email: reserva.email,
+        atividade: reserva.atividade,
+        data: reserva.data,
+        horario: reserva.horario,
+        participantes: reserva.participantes,
+      });
+
+      console.log(`✅ E-mail de confirmação enviado para: ${reserva.email}`);
+      res.sendStatus(200);
+
+    } catch (error) {
+      console.error('❌ Erro ao atualizar reserva ou enviar e-mail:', error);
+      res.status(500).send('Erro ao processar o webhook');
     }
   } else {
-    // Qualquer outro evento, apenas loga e ignora
-    console.log(`📭 Evento ignorado: ${data.event}`);
-    res.sendStatus(200);
+    console.warn("⚠️ externalReference ausente no webhook.");
+    res.status(400).send('externalReference ausente');
   }
+}
   console.log("📌 Evento bruto:", data.event, "|", typeof data.event);
   console.log("📌 Comparação direta:", data.event === 'PAYMENT_CONFIRMED');
 
