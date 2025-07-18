@@ -10,6 +10,10 @@ export type CriarReservaPayload = {
   telefone: string;
   atividade: string;
   data: string;
+  adultos: number;
+  bariatrica: number;
+  criancas: number;
+  naoPagante: number;
   participantes: number;
   horario: string | null; // Novo campo para horário
   status?: string;
@@ -26,6 +30,10 @@ export async function criarReserva(payload: CriarReservaPayload): Promise<string
     atividade,
     data,
     participantes,
+    adultos,
+    bariatrica,
+    criancas,
+    naoPagante,
     horario, // Captura o horário do payload
     status = "aguardando",
     observacao = ""
@@ -45,6 +53,10 @@ export async function criarReserva(payload: CriarReservaPayload): Promise<string
     atividade,
     data,
     participantes,
+    adultos,
+    bariatrica,
+    criancas,
+    naoPagante,
     horario, // Adiciona o horário ao documento
     status,
     observacao,

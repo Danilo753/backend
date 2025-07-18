@@ -5,7 +5,7 @@ const reservas_1 = require("./reservas");
 const firestore_1 = require("firebase/firestore");
 const firebase_1 = require("./firebase");
 async function criarCobrancaHandler(req, res) {
-    const { nome, email, valor, cpf, telefone, atividade, data, horario, participantes, billingType, } = req.body;
+    const { nome, email, valor, cpf, telefone, atividade, data, horario, participantes, adultos, bariatrica, criancas, naoPagante, billingType, } = req.body;
     console.log("📥 Dados recebidos:", req.body);
     const horarioFormatado = horario?.toString().trim();
     if (!nome ||
@@ -57,6 +57,11 @@ async function criarCobrancaHandler(req, res) {
             valor,
             data,
             participantes,
+            adultos,
+            bariatrica,
+            criancas,
+            naoPagante,
+            observacao: "",
             horario: horarioFormatado,
             status: "aguardando",
         });

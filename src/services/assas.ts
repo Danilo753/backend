@@ -13,6 +13,10 @@ export type CriarCobrancaPayload = {
   data: string;
   horario: string;
   participantes: number;
+  adultos: number;
+  bariatrica: number;
+  criancas: number;
+  naoPagante: number;
   billingType: "PIX" | "CREDIT_CARD";
 };
 
@@ -37,6 +41,10 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
     data,
     horario,
     participantes,
+    adultos,
+    bariatrica,
+    criancas,
+    naoPagante,
     billingType,
   } = req.body as CriarCobrancaPayload;
 
@@ -105,6 +113,11 @@ export async function criarCobrancaHandler(req: Request, res: Response): Promise
       valor,
       data,
       participantes,
+      adultos,
+      bariatrica,
+      criancas,
+      naoPagante,
+      observacao: "",
       horario: horarioFormatado,
       status: "aguardando",
     });
